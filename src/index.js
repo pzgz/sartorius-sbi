@@ -314,6 +314,69 @@ class Scale extends Emitter {
     });
   }
 
+  //
+  // startListening( (err) => { ... } )
+  //
+  // 被动监听天平主动发送的数据，不主动轮询
+  // 当天平发送数据时，会自动解析并触发相应事件
+  //
+  startListening(callback) {
+    let scale = this;
+
+    callback = callback || throwIt;
+
+    let lastWeight = undefined;
+    let lastUom = undefined;
+
+    // 监听来自天平的所有数据
+    let dataHandler = (data) => {
+      debug(`received data from scale: "${data.trim()}"`);
+
+      // 尝试解析为重量数据
+      scale.extractWeight(data, (err, weight, uom) => {
+        if (!err) {
+          // 成功解析为重量数据
+          if (!(weight === lastWeight && uom === lastUom)) {
+            scale.emit("weight", weight, uom);
+            lastWeight = weight;
+            lastUom = uom;
+          }
+        } else {
+          // 不是重量数据，可能是其他类型的数据
+          scale.emit("data", data.trim());
+        }
+      });
+    };
+
+    // 开始监听
+    scale.parser.on("data", dataHandler);
+
+    // 保存handler引用以便后续移除
+    scale._dataHandler = dataHandler;
+
+    callback(undefined, scale);
+    scale.emit("listening");
+  }
+
+  //
+  // stopListening( (err) => { ... } )
+  //
+  // 停止被动监听
+  //
+  stopListening(callback) {
+    let scale = this;
+
+    callback = callback || throwIt;
+
+    if (scale._dataHandler) {
+      scale.parser.removeListener("data", scale._dataHandler);
+      scale._dataHandler = null;
+    }
+
+    scale.emit("stopped");
+    callback(undefined);
+  }
+
   cancel(poll, callback = throwIt) {
     let scale = this;
     clearInterval(poll);

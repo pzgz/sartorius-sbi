@@ -2,8 +2,8 @@
 const debug = require("debug")("sbi:scale");
 const Emitter = require("events");
 
-const SerialPort = require("serialport");
-const Readline = require("@serialport/parser-readline");
+const { SerialPort } = require("serialport");
+const { ReadlineParser } = require("@serialport/parser-readline");
 
 const m = require("mathjs");
 
@@ -41,7 +41,8 @@ class Scale extends Emitter {
 
     scale.options = { ...TTY_DEFAULTS, ...options };
 
-    scale.tty = new SerialPort(scale.options.ttyDevice, {
+    scale.tty = new SerialPort({
+      path: scale.options.ttyDevice,
       // defaults
       baudRate: scale.options.baudRate,
       dataBits: scale.options.dataBits,
@@ -55,7 +56,7 @@ class Scale extends Emitter {
       autoOpen: false,
     });
 
-    scale.parser = scale.tty.pipe(new Readline({ delimiter: "\r\n" }));
+    scale.parser = scale.tty.pipe(new ReadlineParser({ delimiter: "\r\n" }));
 
     // auto open the scale if a callback is provided
     if (callback) {

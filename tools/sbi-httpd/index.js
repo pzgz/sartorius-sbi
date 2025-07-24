@@ -13,8 +13,9 @@ var TTY_DEFAULTS = require('../../src/index.js').TTY_DEFAULTS;
 function getString(v) { return v; }
 function getInt(i) { return parseInt(i); }
 
-const args = require('commander')
+const { program } = require('commander');
 
+const args = program
     .version(require('../../package.json').version)
 
     .option('-d --ttyDevice <dev>', 'device name [/dev/tty.USB0]', getString, TTY_DEFAULTS.ttyDevice)
@@ -38,21 +39,23 @@ const args = require('commander')
 
     ;
 
+const options = args.opts();
+
 let scaleOptions = {
 
-    ttyDevice: args.ttyDevice,
-    baudRate: args.baudRate,
-    dataBits: args.dataBits,
-    stopBits: args.stopBits,
-    parity: args.parity,
+    ttyDevice: options.ttyDevice,
+    baudRate: options.baudRate,
+    dataBits: options.dataBits,
+    stopBits: options.stopBits,
+    parity: options.parity,
 
-    rtscts: !!args.rtscts,
-    xon: !!args.xon,
-    xoff: !!args.xoff,
-    xany: !!args.xany,
+    rtscts: !!options.rtscts,
+    xon: !!options.xon,
+    xoff: !!options.xoff,
+    xany: !!options.xany,
 
-    responseTimeout: args.responseTimeout,
-    precision: args.precision,
+    responseTimeout: options.responseTimeout,
+    precision: options.precision,
 
 };
 
@@ -80,10 +83,10 @@ var scale = new Scale(scaleOptions, function (err) {
             console.log('Serial Number:', serialNumber);
 
             // 根据模式选择监听方式
-            if (args.mode === 'passive') {
+            if (options.mode === 'passive') {
                 console.log('Starting passive listening mode...');
                 startPassiveMode();
-            } else if (args.mode === 'active') {
+            } else if (options.mode === 'active') {
                 console.log('Starting active monitoring mode...');
                 startActiveMode();
             } else {
@@ -167,7 +170,7 @@ function startActiveMode() {
                     console.log('Unhandled key press:', key, '(' + name + ')');
             }
         });
-    }, args.pollInterval);
+    }, options.pollInterval);
 }
 
 app.get('/', function (req, res) {
@@ -179,7 +182,7 @@ io.on('connection', function (socket) {
 
     // 发送当前状态给新连接的客户端
     socket.emit('connected', {
-        mode: args.mode,
+        mode: options.mode,
         deviceInfo: deviceInfo,
         serialNumber: serialNumber,
         currentWeight: lastWeight,
@@ -316,9 +319,9 @@ io.on('connection', function (socket) {
 
     // 切换监听模式（仅在服务运行时）
     socket.on('switchMode', function (msg, ack) {
-        const newMode = msg && msg.mode ? msg.mode : args.mode;
+        const newMode = msg && msg.mode ? msg.mode : options.mode;
 
-        if (newMode === args.mode) {
+        if (newMode === options.mode) {
             if (typeof ack === 'function') {
                 ack({
                     success: false,
@@ -330,15 +333,15 @@ io.on('connection', function (socket) {
         }
 
         // 停止当前模式
-        if (args.mode === 'active' && monitorPoll) {
+        if (options.mode === 'active' && monitorPoll) {
             scale.cancel(monitorPoll);
             monitorPoll = null;
-        } else if (args.mode === 'passive') {
+        } else if (options.mode === 'passive') {
             scale.stopListening();
         }
 
         // 切换到新模式
-        args.mode = newMode;
+        options.mode = newMode;
 
         if (newMode === 'passive') {
             startPassiveMode();
@@ -367,12 +370,12 @@ io.on('connection', function (socket) {
 process.on('SIGINT', function () {
     console.log('\nShutting down gracefully...');
 
-    if (args.mode === 'active' && monitorPoll) {
+    if (options.mode === 'active' && monitorPoll) {
         scale.cancel(monitorPoll, function () {
             console.log('Active monitoring stopped');
             process.exit(0);
         });
-    } else if (args.mode === 'passive') {
+    } else if (options.mode === 'passive') {
         scale.stopListening(function () {
             console.log('Passive listening stopped');
             process.exit(0);
@@ -385,9 +388,9 @@ process.on('SIGINT', function () {
 http.listen(3000, function (err) {
     if (err) return console.error(err);
     console.log('🚀 SBI HTTP Server listening on *:3000');
-    console.log(`📊 Mode: ${args.mode}`);
-    console.log(`📱 Device: ${args.ttyDevice}`);
-    if (args.mode === 'active') {
-        console.log(`⏱️  Poll interval: ${args.pollInterval}ms`);
+    console.log(`📊 Mode: ${options.mode}`);
+    console.log(`📱 Device: ${options.ttyDevice}`);
+    if (options.mode === 'active') {
+        console.log(`⏱️  Poll interval: ${options.pollInterval}ms`);
     }
 });

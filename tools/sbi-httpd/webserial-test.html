@@ -264,6 +264,30 @@
               </div>
             </div>
             <div class="row">
+              <div class="col-md-3">
+                <div class="form-group">
+                  <label for="dataFormat">数据格式</label>
+                  <select class="form-control"
+                          id="dataFormat">
+                    <option value="22"
+                            selected>22位格式 (带6位ID)</option>
+                    <option value="16">16位格式 (标准)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-9">
+                <div class="form-group">
+                  <label>&nbsp;</label>
+                  <div class="form-control-static">
+                    <small class="text-muted">
+                      <strong>22位:</strong> 包含6位设备ID + 14位重量数据 |
+                      <strong>16位:</strong> 仅包含14位重量数据
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row">
               <div class="col-md-8">
                 <small class="text-muted">
                   <strong>Sartorius 天平默认参数:</strong> 9600波特率, 8数据位, 1停止位, 奇校验
@@ -495,7 +519,8 @@
           stopBits: parseInt($('#stopBits').val()),
           parity: $('#parity').val(),
           responseTimeout: parseInt($('#responseTimeout').val()),
-          precision: parseInt($('#precision').val())
+          precision: parseInt($('#precision').val()),
+          dataFormat: parseInt($('#dataFormat').val())
         };
       }
 
@@ -509,7 +534,8 @@
             $('#parity').val('odd');
             $('#responseTimeout').val('200');
             $('#precision').val('1');
-            addLog('🎯 已应用 Sartorius 默认参数', 'system');
+            $('#dataFormat').val('22');
+            addLog('🎯 已应用 Sartorius 默认参数 (22位格式)', 'system');
             break;
           case 'none':
             $('#baudRate').val('9600');
@@ -518,7 +544,8 @@
             $('#parity').val('none');
             $('#responseTimeout').val('200');
             $('#precision').val('1');
-            addLog('🎯 已应用无校验模式参数', 'system');
+            $('#dataFormat').val('22');
+            addLog('🎯 已应用无校验模式参数 (22位格式)', 'system');
             break;
           case 'even':
             $('#baudRate').val('9600');
@@ -527,7 +554,8 @@
             $('#parity').val('even');
             $('#responseTimeout').val('200');
             $('#precision').val('1');
-            addLog('🎯 已应用偶校验模式参数', 'system');
+            $('#dataFormat').val('22');
+            addLog('🎯 已应用偶校验模式参数 (22位格式)', 'system');
             break;
         }
       }

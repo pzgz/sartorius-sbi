@@ -31,6 +31,7 @@ const args = program
 
     .option('--responseTimeout <ms>', 'response timeout [200] milliseconds', getInt, 200)
     .option('--precision <places>', 'weight precision [1] or 2 decimal places', getInt, 1)
+    .option('--dataFormat <format>', 'data format: [22] (with 6-bit ID) or 16 (standard)', getInt, 22)
 
     .option('--mode <mode>', 'monitoring mode: [passive] or active', getString, 'passive')
     .option('--pollInterval <ms>', 'poll interval for active mode [200] milliseconds', getInt, 200)
@@ -56,6 +57,7 @@ let scaleOptions = {
 
     responseTimeout: options.responseTimeout,
     precision: options.precision,
+    dataFormat: options.dataFormat,
 
 };
 

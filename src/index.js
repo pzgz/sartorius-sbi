@@ -23,7 +23,8 @@ const TTY_DEFAULTS = {
 
   responseTimeout: 200, // in milliseconds
 
-  precision: 1, // decimal places
+  precision: 3, // decimal places
+  dataFormat: 22, // Default to 22-bit format (20 chars after CRLF removal)
 };
 
 //
@@ -164,30 +165,54 @@ class Scale extends Emitter {
   // extractWeight( data, (err,weight,uom) => { ... } )
   //
   // Extract a proper weight value from a scale response
+  // Supports both 16-bit (14 chars) and 22-bit (20 chars) formats
   //
-  //                                                       01234567890123
+  // 16-bit format:                                        01234567890123
   // Note: scale responds with values that look like this '-      0.1 g  '
+  // data[0] = sign, data[1..10] = weight, data[11..13] = UOM
   //
-  // data[0] = sign
-  // data[1..10] = weight
-  // data[11..13] = UOM
+  // 22-bit format:                              0123456789012345678901
+  // Note: scale responds with values like this 'ID1234-      0.1 g  '
+  // data[0..5] = device ID, data[6] = sign, data[7..16] = weight, data[17..19] = UOM
   //
   extractWeight(data, callback) {
-    if (data.length !== 14) {
-      return callback(new Error("bad weight - wrong length"));
+    let expectedLength, signIndex, weightStart, weightEnd, uomStart, uomEnd;
+
+    if (this.options.dataFormat === 22) {
+      // 22-bit format: 6-bit ID + 14-bit weight data (20 chars total after CRLF removal)
+      expectedLength = 20;
+      signIndex = 6;
+      weightStart = 7;
+      weightEnd = 17;
+      uomStart = 17;
+      uomEnd = 20;
+    } else {
+      // 16-bit format: 14-bit weight data (14 chars total after CRLF removal)
+      expectedLength = 14;
+      signIndex = 0;
+      weightStart = 1;
+      weightEnd = 11;
+      uomStart = 11;
+      uomEnd = 14;
     }
-    if (!(data[0] === " " || data[0] === "+" || data[0])) {
+
+    if (data.length !== expectedLength) {
+      return callback(new Error(`bad weight - wrong length for ${this.options.dataFormat}-bit format. Expected ${expectedLength}, got ${data.length}`));
+    }
+
+    if (!(data[signIndex] === " " || data[signIndex] === "+" || data[signIndex] === "-")) {
       return callback(new Error("bad weight - wrong sign"));
     }
-    let sign = data[0] === "-" ? -1 : 1;
+
+    let sign = data[signIndex] === "-" ? -1 : 1;
     let weight = m.round(
-      sign * Number(data.substring(1, 11)),
+      sign * Number(data.substring(weightStart, weightEnd)),
       this.options.precision
     );
     if (isNaN(weight)) {
       return callback(new Error("bad weight - not a number"));
     }
-    let uom = data.substr(11, 3).trim();
+    let uom = data.substring(uomStart, uomEnd).trim();
     // Note: empty uom means the scale isn't stable yet.
     if (!(uom === "" || uom === "g" || uom === "/lb")) {
       return callback(new Error("bad weight - uom"));
@@ -331,7 +356,7 @@ class Scale extends Emitter {
 
     // 监听来自天平的所有数据
     let dataHandler = (data) => {
-      debug(`received data from scale: "${data.trim()}"`);
+      debug(`received data from scale: "${data.trim()}" (length: ${data.length}, format: ${scale.options.dataFormat})`);
 
       // 尝试解析为重量数据
       scale.extractWeight(data, (err, weight, uom) => {
@@ -344,6 +369,7 @@ class Scale extends Emitter {
           }
         } else {
           // 不是重量数据，可能是其他类型的数据
+          debug(`Failed to parse as weight data: ${err.message}`);
           scale.emit("data", data.trim());
         }
       });

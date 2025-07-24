@@ -117,6 +117,7 @@ class WebSerialScale extends EventEmitter {
       flowControl: "none",
       responseTimeout: 200,
       precision: 1,
+      dataFormat: 22, // Default to 22-bit format (20 chars after CRLF removal)
       ...options
     };
 
@@ -282,25 +283,47 @@ class WebSerialScale extends EventEmitter {
 
   /**
    * Extract weight from scale response
+   * Supports both 16-bit (14 chars) and 22-bit (20 chars) formats
    */
   extractWeight(data) {
-    if (data.length !== 14) {
-      throw new Error('Bad weight - wrong length');
+    let signIndex, weightStart, weightEnd, uomStart, uomEnd;
+
+    if (this.options.dataFormat === 22) {
+      // 22-bit format: 6-bit ID + 14-bit weight data (20 chars total after CRLF removal)
+      if (data.length !== 20) {
+        throw new Error(`Bad weight - wrong length for 22-bit format. Expected 20, got ${data.length}`);
+      }
+      // Skip first 6 characters (ID), then parse weight data
+      signIndex = 6;
+      weightStart = 7;
+      weightEnd = 17;
+      uomStart = 17;
+      uomEnd = 20;
+    } else {
+      // 16-bit format: 14-bit weight data (14 chars total after CRLF removal)
+      if (data.length !== 14) {
+        throw new Error(`Bad weight - wrong length for 16-bit format. Expected 14, got ${data.length}`);
+      }
+      signIndex = 0;
+      weightStart = 1;
+      weightEnd = 11;
+      uomStart = 11;
+      uomEnd = 14;
     }
 
-    if (!(data[0] === " " || data[0] === "+" || data[0] === "-")) {
+    if (!(data[signIndex] === " " || data[signIndex] === "+" || data[signIndex] === "-")) {
       throw new Error('Bad weight - wrong sign');
     }
 
-    const sign = data[0] === "-" ? -1 : 1;
-    const weightString = data.substring(1, 11);
+    const sign = data[signIndex] === "-" ? -1 : 1;
+    const weightString = data.substring(weightStart, weightEnd);
     const weight = Math.round(sign * Number(weightString) * Math.pow(10, this.options.precision)) / Math.pow(10, this.options.precision);
 
     if (isNaN(weight)) {
       throw new Error('Bad weight - not a number');
     }
 
-    const uom = data.substr(11, 3).trim();
+    const uom = data.substring(uomStart, uomEnd).trim();
 
     // Note: empty uom means the scale isn't stable yet.
     if (!(uom === "" || uom === "g" || uom === "/lb")) {
@@ -428,13 +451,14 @@ class WebSerialScale extends EventEmitter {
   }
 
   /**
-   * Process incoming data and emit appropriate events
-   */
+ * Process incoming data and emit appropriate events
+ */
   _processIncomingData(data) {
-    console.log(`Processing incoming data: "${data.trim()}"`);
+    console.log(`Processing incoming data: "${data.trim()}" (length: ${data.length})`);
 
-    // Try to parse as weight data
-    if (data.length === 14) {
+    // Try to parse as weight data (check both 14-bit and 20-bit formats)
+    const expectedLength = this.options.dataFormat === 22 ? 20 : 14;
+    if (data.length === expectedLength) {
       try {
         const { weight, uom } = this.extractWeight(data);
 
@@ -447,6 +471,7 @@ class WebSerialScale extends EventEmitter {
         return;
       } catch (error) {
         // Not weight data, continue to other processing
+        console.log(`Failed to parse as weight data: ${error.message}`);
       }
     }
 

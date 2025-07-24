@@ -116,7 +116,7 @@ class WebSerialScale extends EventEmitter {
       stopBits: 1,
       flowControl: "none",
       responseTimeout: 200,
-      precision: 1,
+      precision: 3,
       dataFormat: 22, // Default to 22-bit format (20 chars after CRLF removal)
       ...options
     };

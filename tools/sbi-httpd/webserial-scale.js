@@ -112,7 +112,7 @@ class WebSerialScale extends EventEmitter {
     this.options = {
       baudRate: 9600,
       dataBits: 8,
-      parity: "none",
+      parity: "odd", // Changed to "odd" as default for Sartorius scales
       stopBits: 1,
       flowControl: "none",
       responseTimeout: 200,
@@ -161,11 +161,13 @@ class WebSerialScale extends EventEmitter {
 
       // Test connection by querying device info
       try {
-        await this.query(SBI.DEVICE_INFO);
-        console.log('Scale connection verified');
+        console.log('Testing scale connection...');
+        const deviceInfo = await this.query(SBI.DEVICE_INFO);
+        console.log('Scale connection verified, device info:', deviceInfo);
       } catch (error) {
+        console.error('Scale verification failed:', error);
         await this.disconnect();
-        throw new Error('Connected to serial port but no compatible scale found');
+        throw new Error(`Connected to serial port but no compatible scale found. Error: ${error.message}. Please check:\n1. Scale is powered on\n2. Correct serial port selected\n3. Connection parameters match scale settings\n4. Scale is in the correct mode`);
       }
 
     } catch (error) {

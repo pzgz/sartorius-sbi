@@ -184,6 +184,117 @@
       </div>
     </div>
 
+    <!-- 连接配置 -->
+    <div class="row">
+      <div class="col-md-12">
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h3 class="panel-title">串口连接配置</h3>
+          </div>
+          <div class="panel-body">
+            <div class="row">
+              <div class="col-md-2">
+                <div class="form-group">
+                  <label for="baudRate">波特率</label>
+                  <select class="form-control"
+                          id="baudRate">
+                    <option value="1200">1200</option>
+                    <option value="9600"
+                            selected>9600</option>
+                    <option value="38400">38400</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="form-group">
+                  <label for="dataBits">数据位</label>
+                  <select class="form-control"
+                          id="dataBits">
+                    <option value="7">7</option>
+                    <option value="8"
+                            selected>8</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="form-group">
+                  <label for="stopBits">停止位</label>
+                  <select class="form-control"
+                          id="stopBits">
+                    <option value="1"
+                            selected>1</option>
+                    <option value="2">2</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="form-group">
+                  <label for="parity">校验位</label>
+                  <select class="form-control"
+                          id="parity">
+                    <option value="none">无校验</option>
+                    <option value="odd"
+                            selected>奇校验</option>
+                    <option value="even">偶校验</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="form-group">
+                  <label for="responseTimeout">超时(ms)</label>
+                  <input type="number"
+                         class="form-control"
+                         id="responseTimeout"
+                         value="200"
+                         min="100"
+                         max="5000">
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="form-group">
+                  <label for="precision">精度</label>
+                  <select class="form-control"
+                          id="precision">
+                    <option value="1"
+                            selected>1位小数</option>
+                    <option value="2">2位小数</option>
+                    <option value="3">3位小数</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-8">
+                <small class="text-muted">
+                  <strong>Sartorius 天平默认参数:</strong> 9600波特率, 8数据位, 1停止位, 奇校验
+                </small>
+              </div>
+              <div class="col-md-4 text-right">
+                <div class="btn-group"
+                     role="group">
+                  <button type="button"
+                          class="btn btn-xs btn-default"
+                          id="presetSartorius">
+                    Sartorius 默认
+                  </button>
+                  <button type="button"
+                          class="btn btn-xs btn-default"
+                          id="presetNone">
+                    无校验模式
+                  </button>
+                  <button type="button"
+                          class="btn btn-xs btn-default"
+                          id="presetEven">
+                    偶校验模式
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 控制按钮 -->
     <div class="row">
       <div class="col-md-12">
@@ -376,10 +487,59 @@
         }
       }
 
+      // 获取连接配置参数
+      function getConnectionOptions() {
+        return {
+          baudRate: parseInt($('#baudRate').val()),
+          dataBits: parseInt($('#dataBits').val()),
+          stopBits: parseInt($('#stopBits').val()),
+          parity: $('#parity').val(),
+          responseTimeout: parseInt($('#responseTimeout').val()),
+          precision: parseInt($('#precision').val())
+        };
+      }
+
+      // 应用连接参数预设
+      function applyConnectionPreset(preset) {
+        switch (preset) {
+          case 'sartorius':
+            $('#baudRate').val('9600');
+            $('#dataBits').val('8');
+            $('#stopBits').val('1');
+            $('#parity').val('odd');
+            $('#responseTimeout').val('200');
+            $('#precision').val('1');
+            addLog('🎯 已应用 Sartorius 默认参数', 'system');
+            break;
+          case 'none':
+            $('#baudRate').val('9600');
+            $('#dataBits').val('8');
+            $('#stopBits').val('1');
+            $('#parity').val('none');
+            $('#responseTimeout').val('200');
+            $('#precision').val('1');
+            addLog('🎯 已应用无校验模式参数', 'system');
+            break;
+          case 'even':
+            $('#baudRate').val('9600');
+            $('#dataBits').val('8');
+            $('#stopBits').val('1');
+            $('#parity').val('even');
+            $('#responseTimeout').val('200');
+            $('#precision').val('1');
+            addLog('🎯 已应用偶校验模式参数', 'system');
+            break;
+        }
+      }
+
       // 事件监听器
       $('#btnConnect').click(async function () {
         try {
-          scale = new WebSerialScale();
+          // 获取用户选择的连接参数
+          const options = getConnectionOptions();
+          addLog('🔧 连接参数: ' + JSON.stringify(options), 'system');
+
+          scale = new WebSerialScale(options);
 
           // 设置事件监听器
           scale.on('weight', function (weight, uom) {
@@ -505,6 +665,19 @@
 
       $('#btnClearLog').click(function () {
         $('#operationLog').empty();
+      });
+
+      // 预设按钮事件
+      $('#presetSartorius').click(function () {
+        applyConnectionPreset('sartorius');
+      });
+
+      $('#presetNone').click(function () {
+        applyConnectionPreset('none');
+      });
+
+      $('#presetEven').click(function () {
+        applyConnectionPreset('even');
       });
 
       // 允许按回车键发送消息
